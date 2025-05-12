@@ -4,18 +4,37 @@ import config
 con = sqlite3.connect('bot_db.sqlite')
 db_cursor = con.cursor()
 
-
-def add_user(user_tg_id):
+### Попробовать упростить
+def add_data(table, *args):
     try:
-        result = db_cursor.execute(f'INSERT INTO Users (user_tg_id, following, info_requests, ai_requests)' \
-                                   f'VALUES ({user_tg_id}, {0}, {config.STOCKS_INFO_REQUESTS}, {config.AI_REQUESTS})').fetchone()
+        print(args)
+        if table == 'Users':        #Добавление пользователя, требует id юзера в Telegram
+            result = db_cursor.execute(f'INSERT INTO Users (user_tg_id, following, info_requests, ai_requests)' \
+                                    f'VALUES ({args[0]}, {0}, {config.STOCKS_INFO_REQUESTS}, {config.AI_REQUESTS})').fetchone()
+        elif table == 'Companies':  #Добавление новой компании, требует название компании, её тикер и полную стоимость компании
+            result = db_cursor.execute(f'INSERT INTO Companies (company_name, company_ticker, company_cost)' \
+                                   f'VALUES ("{args[0]}", "{args[1]}", "{args[2]}")').fetchone()
+        elif table == 'Shares':     #Добавление информации о цене акций, требует id компании, дату, время, стоимость акции
+            result = db_cursor.execute(f'INSERT INTO Shares (company_id, date_time, value)' \
+                                   f'VALUES ("{args[0]}", "{args[1]}", {args[2]})').fetchone()
+        elif table == 'LinkTable':  #Добавление связки между пользователем и компанией, которую он отслеживает, требует id компании и id пользователя
+            result = db_cursor.execute(f'INSERT INTO LinkTable (user_id, company_id)' \
+                                       f'VALUES ({args[0]}, {args[1]})').fetchone()
         con.commit()
         print(result)
     except sqlite3.IntegrityError as e:
         return e
 
-def delete_user(user_tg_id):
-    result = db_cursor.execute(f'DELETE FROM Users WHERE user_tg_id = "{user_tg_id}"')
+def get_data(table, criteria, x):
+    result = db_cursor.execute(f'SELECT * FROM {table} WHERE {criteria} = {x}').fetchone()
+    if result == None:
+        return Exception(f'{x} was not found by {criteria} in {table}')
+    else:
+        result = (table, *result)
+    return result
+
+def delete_data(table, criteria, x):
+    result = db_cursor.execute(f'DELETE FROM {table} WHERE {criteria} = "{x}"')
     con.commit()
     return result
 
@@ -24,30 +43,6 @@ def update_user(user_tg_id, param, new_value):
     con.commit()
     return result
 
-def get_user_data(user_tg_id):
-    result = db_cursor.execute(f'SELECT * FROM Users WHERE user_tg_id = {user_tg_id}').fetchone()
-    if result == None:
-        return Exception('User was not found')
-    return f"ID: {result[0]}\nTG_ID: {result[1]}\nFOLLOWING: {result[2]}\nINFO_REQS: {result[3]}\nAI_REQS: {result[4]}"
-
-def add_company(company_name, company_ticker):
-    try:
-        result = db_cursor.execute(f'INSERT INTO Companies (company_name, company_ticker)' \
-                                   f'VALUES ("{company_name}", "{company_ticker}")').fetchone()
-        con.commit()
-        print(result)
-    except sqlite3.IntegrityError as e:
-        return e
-
-def delete_company(company_name):
-    result = db_cursor.execute(f'DELETE FROM Companies WHERE company_name = "{company_name}"')
-    con.commit()
-    return result
-
-def get_company_data(company_name):
-    result = db_cursor.execute(f'SELECT * FROM Companies WHERE company_name = "{company_name}"').fetchone()
-    if result == None:
-        return Exception('Company was not found')
-    return f"ID: {result[0]}\nNAME: {result[1]}\nTICKER: {result[2]}"
-
-delete_company("Apple Inc.")
+if __name__ == '__main__':
+    print(get_data('Users', 'user_tg_id', '12352'))
+    

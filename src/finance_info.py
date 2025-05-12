@@ -1,3 +1,3 @@
-import data_manage
+from data_manage import add_data, get_data, delete_data
+import requests
 
-print(data_manage.get_user_data(1))
