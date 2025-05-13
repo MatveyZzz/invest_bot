@@ -15,8 +15,8 @@ def add_data(table, *args):
             result = db_cursor.execute(f'INSERT INTO Companies (company_name, company_ticker, company_cost)' \
                                    f'VALUES ("{args[0]}", "{args[1]}", "{args[2]}")').fetchone()
         elif table == 'Shares':     #Добавление информации о цене акций, требует id компании, дату, время, стоимость акции
-            result = db_cursor.execute(f'INSERT INTO Shares (company_id, date_time, value)' \
-                                   f'VALUES ("{args[0]}", "{args[1]}", {args[2]})').fetchone()
+            result = db_cursor.execute(f'INSERT INTO Shares (company_symbol, date_time, currency, open, close, high, low)' \
+                                   f'VALUES ("{args[0]}", "{args[1]}", "{args[2]}", {args[3]}, {args[4]}, {args[5]}, {args[6]})').fetchone()
         elif table == 'LinkTable':  #Добавление связки между пользователем и компанией, которую он отслеживает, требует id компании и id пользователя
             result = db_cursor.execute(f'INSERT INTO LinkTable (user_id, company_id)' \
                                        f'VALUES ({args[0]}, {args[1]})').fetchone()
