@@ -43,6 +43,11 @@ def update_user(user_tg_id, param, new_value):
     con.commit()
     return result
 
+def update_company_data(company_symbol, param, new_value):
+    result = db_cursor.execute(f'UPDATE Companies SET {param} = {new_value} WHERE company_symbol = "{company_symbol}')
+    con.commit()
+    return result
+
 if __name__ == '__main__':
     print(get_data('Users', 'user_tg_id', '12352'))
     
