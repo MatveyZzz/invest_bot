@@ -1,42 +1,59 @@
-from data_manage import add_data, get_data, delete_data
-from data_manage import update_company_data, update_user
 from dotenv import load_dotenv
-import json
-import requests
 import os
-import config
+from datetime import datetime
+
+from aiohttp import ClientSession
+import asyncio
+
+from data_manage import get_companies_list, get_company_id, add_data
 
 load_dotenv()
 
 request_template = 'https://api.twelvedata.com/'
 
-def get_time_series(company_symbol):
-    request_url = request_template + f'time_series?symbol={company_symbol}&interval={config.FIN_DATA_INTERVAL}&type=Common Stock' \
-        f'&outputsize={config.FIN_DATA_OUTPUTS}&apikey={os.getenv("TWELVE_API_KEY")}'
-    response = requests.get(request_url)
-    if response:
-        json_data = response.json()
-        for row in range(config.FIN_DATA_OUTPUTS):
-            add_data('Shares', json_data['meta']['symbol'], json_data['values'][row]['datetime'], json_data['meta']['currency'], 
-                 json_data['values'][row]['open'], json_data['values'][row]['close'], json_data['values'][row]['high'], json_data['values'][row]['low'])
 
-def company_search(entered_symbol):
-    request_url = request_template + f'symbol_search?symbol={entered_symbol}'
-    response = requests.get(request_url)
-    if response:
-        json_data = response.json()
-        print(json_data)
-        return json_data['data']
+async def get_real_time_price(company_symbol, exchange):
+    async with ClientSession() as session:
+        url = 'https://api.twelvedata.com/price'
+        params = {'symbol': company_symbol, 'exchange': exchange, 'type': 'Common Stock', 'apikey': os.getenv("TWELVE_API_KEY")}
+        async with session.get(url=url, params=params) as response:
+            result = await response.json()
+            result['company_id'] = (await get_company_id(company_symbol, exchange))[0]
+            result['datetime'] = datetime.now().strftime('%Y-%m-%d %H:%M')
+            return result
 
-def get_real_time_cost(company_symbol):
-    request_url = request_template + f'price?symbol={company_symbol}&type=Common Stock&apikey={os.getenv("TWELVE_API_KEY")}'
-    response = requests.get(request_url)
-    if response:
-        json_data = response.json()
-        print(json_data)
+async def get_time_series(company_symbol, exchange, interval, outputsize):
+    url = 'https://api.twelvedata.com/time_series'
+    params = {'symbol': company_symbol, 'exchange': exchange, 'interval': interval, 'type': 'Common Stock', 
+                'outputsize': outputsize, 'apikey': os.getenv("TWELVE_API_KEY")}
+    async with ClientSession() as session:
+        async with session.get(url=url, params=params) as response:
+            result = await response.json()
+            return result
 
-def convert_currency():
-    pass
+async def company_search(entered_symbol, outputsize):
+    url = 'https://api.twelvedata.com/symbol_search'
+    params = {'symbol': entered_symbol, 'outputsize': outputsize}
+    async with ClientSession() as session:
+        async with session.get(url=url, params=params) as response:
+            result = await response.json()
+            return result
+
+async def update_companies_real_time_cost():
+    tasks = []
+    companies = await get_companies_list()
+    for company in companies:
+        tasks.append(asyncio.create_task(get_real_time_price(company[0], company[1])))
+    results = await asyncio.gather(*tasks)
+    print(results)
+    tasks = []
+    for result in results:
+        tasks.append(asyncio.create_task(add_data('Shares', result['company_id'], result['datetime'], result['price'])))  
+
+
+async def main_func():
+    result = await company_search('BRUH', 5)
+    print(result)
 
 if __name__ == '__main__':
-    company_search("AAPL")
+    asyncio.run(main_func())
