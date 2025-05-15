@@ -9,8 +9,6 @@ from data_manage import get_companies_list, get_company_id, add_data
 
 load_dotenv()
 
-request_template = 'https://api.twelvedata.com/'
-
 
 async def get_real_time_price(company_symbol, exchange):
     async with ClientSession() as session:
