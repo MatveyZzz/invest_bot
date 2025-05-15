@@ -1,6 +1,8 @@
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 import asyncio
+import os
+from dotenv import load_dotenv
 
 from data_manage import add_data, get_data, delete_data, update_user, check_subscription
 from finance_info import company_search, get_time_series
@@ -8,7 +10,9 @@ import config
 from bot_actions import search_n_select_company
 from data_manage import get_data, get_company_id
 
-TOKEN = "7555127313:AAFZ8sq86GEdaE7flOAAZ8YhOFBYa44VOE4"
+load_dotenv()
+
+TOKEN = os.getenv("BOT_TOKEN")
 
 # --- Меню клавиатур ---
 def main_menu():
