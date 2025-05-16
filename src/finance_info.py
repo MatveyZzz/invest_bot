@@ -29,6 +29,16 @@ async def get_time_series(company_symbol, exchange, interval, outputsize):
             result = await response.json()
             return result
 
+# async def get_time_series(company_id: int, interval, outputsize):
+#     url = 'https://api.twelvedata.com/time_series'
+
+#     params = {'symbol': company_symbol, 'exchange': exchange, 'interval': interval, 'type': 'Common Stock', 
+#                 'outputsize': outputsize, 'apikey': os.getenv("TWELVE_API_KEY")}
+#     async with ClientSession() as session:
+#         async with session.get(url=url, params=params) as response:
+#             result = await response.json()
+#             return result
+
 async def company_search(entered_symbol, outputsize):
     url = 'https://api.twelvedata.com/symbol_search'
     params = {'symbol': entered_symbol, 'outputsize': outputsize}

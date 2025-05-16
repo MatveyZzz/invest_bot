@@ -4,33 +4,35 @@ import asyncio
 import os
 from dotenv import load_dotenv
 
+from grathics import generate_stock_chart
 from data_manage import add_data, get_data, delete_data, update_user, check_subscription
 from finance_info import company_search, get_time_series
 import config
-from bot_actions import search_n_select_company
+from bot_actions import search_n_select_company, reset_user, send_real_time_data
 from data_manage import get_data, get_company_id
 
 load_dotenv()
 
 TOKEN = os.getenv("BOT_TOKEN")
 
+
 # --- Меню клавиатур ---
 def main_menu():
     keyboard = [
-        [InlineKeyboardButton("Получить информацию об акциях компании", callback_data="get_stock_info")],
-        [InlineKeyboardButton("Обновить информацию", callback_data="update_stock_info")],
-        [InlineKeyboardButton("Краткая сводка", callback_data="market_summary")],
-        [InlineKeyboardButton("Настройки", callback_data="settings_menu")]
+        [InlineKeyboardButton("Получить информацию об акциях компании 📈", callback_data="get_stock_info")],
+        [InlineKeyboardButton("Обновить информацию 🔄 (не работает)", callback_data="update_stock_info")],
+        [InlineKeyboardButton("Краткая сводка 📋(Не работает)", callback_data="market_summary")],
+        [InlineKeyboardButton("Настройки ⚙️", callback_data="settings_menu")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
 def settings_menu():
     keyboard = [
-        [InlineKeyboardButton("Настройка отслеживаемых компаний", callback_data="manage_companies")],
-        [InlineKeyboardButton("Выбрать количество рассылок в день", callback_data="set_mail_count")],
-        [InlineKeyboardButton("Выбрать время рассылок", callback_data="set_mail_time")],
-        [InlineKeyboardButton("Включить/выключить ежедневную рассылку", callback_data="toggle_subscription")],
-        [InlineKeyboardButton("Сброс данных", callback_data="reset_data")],
+        [InlineKeyboardButton("Настройка отслеживаемых компаний(Нет)", callback_data="manage_companies")],
+        [InlineKeyboardButton("Выбрать количество рассылок в день(Нет)", callback_data="set_mail_count")],
+        [InlineKeyboardButton("Выбрать время рассылок(Нет)", callback_data="set_mail_time")],
+        [InlineKeyboardButton("Включить/выключить ежедневную рассылку(Нет)", callback_data="toggle_subscription")],
+        [InlineKeyboardButton("Сброс данных 🗑️", callback_data="reset_data")],
         [InlineKeyboardButton("Назад", callback_data="back_to_main")]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -56,6 +58,7 @@ async def start(update: Update, context):
     user = update.effective_user
     user_id = user.id
     await add_data('Users', user_id)
+    await update_user(user_id, 'status', 'Idle')
     #get_user_data(user_id)
     await update.message.reply_text(
         "Привет! Я бот для получения информации о фондовом рынке.",
@@ -71,16 +74,16 @@ async def button_handler(update: Update, context):
 
     if data == "get_stock_info":
         # Вызов: начать диалог поиска компании
-        await query.message.reply_text("Введите уникальный Ticker-символ компании:")
+        await query.message.reply_text("Введите уникальный Ticker-символ компании для начала поиска 🔎:")
         await update_user(user_id, 'status', 'TICKER_AWAIT')
 
     # elif data == "update_stock_info":
-    #     # Вызов: обновить информацию по отслеживаемым компаниям
-    #     if user_data["requests_today"] >= 3:
-    #         await query.message.reply_text("Вы достигли лимита обновлений на сегодня.")
-    #     else:
-    #         user_data["requests_today"] += 1
-    #         await query.message.reply_text("Обновляем информацию...")
+    #     reqs_left = int((await get_data('Users', 'info_requests', 'user_tg_id', user_id))[0][0])
+    #     if reqs_left > 0:
+    #         companies_tasks = []
+    #         for company in await get_data('LinkTable', 'company_id', 'user_tg_id', user_id):
+
+        
 
     elif data == "market_summary":
         # Вызов: сгенерировать краткую сводку через ИИ
@@ -110,48 +113,47 @@ async def button_handler(update: Update, context):
 
     elif data == "reset_data":
         # Вызов: сброс данных пользователя
-        await delete_data('Users', 'user_tg_id', user_id)
+        await reset_user(user_id)
         await query.message.reply_text("Ваши данные сброшены.", reply_markup=main_menu())
 
     elif data == "back_to_main":
         # Вернуться в главное меню
-        await update_user(user_id, 'status', 'None')
+        await update_user(user_id, 'status', 'Idle')
         await query.message.reply_text("Главное меню:", reply_markup=main_menu())
 
     elif data.startswith('Found_companies:'):
         data = data.split(':')[1:]
         additional_data = ''
         keyboard = []
-        result = await get_time_series(data[1], data[2], config.FIN_DATA_INTERVAL, config.FIN_DATA_OUTPUTS)
-        await query.edit_message_text(text=f'Изменения цен на акции "{data[0]}" за последнюю неделю.',
-                                      reply_markup=None)
         sub_status = await check_subscription(user_id, data[1], data[2])
         print(sub_status)
         if not sub_status:
-            keyboard = [[InlineKeyboardButton('Подписаться', callback_data=f'AddCompany:{data[0]}:{data[1]}:{data[2]}')]]
+            keyboard.append([InlineKeyboardButton('Подписаться', callback_data=f'AddCompany:{data[0]}:{data[1]}:{data[2]}')])
         else:
             additional_data = 'Вы подписаны ✅'
+        keyboard.append([InlineKeyboardButton('Вернуться в меню', callback_data='back_to_main')])
+
+        result = await get_time_series(data[1], data[2], config.FIN_DATA_INTERVAL, config.FIN_DATA_OUTPUTS)
+        await query.edit_message_text(text=f'Изменения цен на акции "{data[0]}" за последнюю неделю.\n' + additional_data,
+                                      reply_markup=InlineKeyboardMarkup(keyboard))
 
         #Вызов отрисовки графика изменения цены на акции выбранной компании
-        await query.message.reply_text(str(result) + '\n' + additional_data, reply_markup=InlineKeyboardMarkup(keyboard))
+        await send_real_time_data(result, update, context)
     
     elif data.startswith('AddCompany:'):
         data = data.split(':')[1:]
-        # text = await company_subcribe(user_id, data[1], data[2])
-        # await query.message.reply_text(text)
         company_id = await get_company_id(data[1], data[2])
         if not company_id:
             await add_data('Companies', data[0], data[1], data[2])
             company_id = await get_company_id(data[1], data[2])
-        subs = await get_data('Users', 'following', 'user_tg_id', user_id)
+        subs = (await get_data('Users', 'following', 'user_tg_id', user_id))[0]
         if subs[0] < config.SUBSCRIPTIONS_LIMIT:
             asyncio.gather(add_data('LinkTable', user_id, company_id), update_user(user_id, 'following', subs[0] + 1))
             answer =  'Вы успешно подписались!'
         elif subs[0] >= config.SUBSCRIPTIONS_LIMIT:
-            answer = 'Вы превысили количество активных подписок.'
+            answer = 'Вы превысили количество активных подписок ❌'
         else:
             answer = 'Неизвестная ошибка.'
-
         await query.message.reply_text(answer)
 
     else:
@@ -163,7 +165,7 @@ async def text_handler(update: Update, context):
     user_data = get_user_data(user_id)
     text = update.message.text
 
-    status = await get_data('Users', 'status', 'user_tg_id', user_id)
+    status = (await get_data('Users', 'status', 'user_tg_id', user_id))[0]
 
     if status[0] == 'TICKER_AWAIT':
         result = await search_n_select_company(text)

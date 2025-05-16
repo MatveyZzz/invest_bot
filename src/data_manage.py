@@ -1,6 +1,5 @@
 import sqlite3
 import config
-import asyncio
 from datetime import datetime
 
 con = sqlite3.connect('bot_db.sqlite')
@@ -28,11 +27,9 @@ async def add_data(table, *args):
         return e
 
 async def get_data(table, what, criteria, x):
-    result = db_cursor.execute(f'SELECT {what} FROM {table} WHERE {criteria} = {x}').fetchone()
+    result = db_cursor.execute(f'SELECT {what} FROM {table} WHERE {criteria} = {x}').fetchall()
     if result == None:
         return Exception(f'{x} was not found by {criteria} in {table}')
-    else:
-        result = result
     return result
 
 async def delete_data(table, criteria, x):
